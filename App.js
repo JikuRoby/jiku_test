@@ -9,7 +9,20 @@ import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
 
-const eurostatApiEndpoint = "https://api.eurostat.ec.europa.eu/rest/data/v2.1/json/en";
+function App() {
+  const [data, setData] = useState([]);
+  const [imageUrl, setImageUrl] = useState('');
+  const [selectedRange, setSelectedRange] = useState([0, 49]);
+  const [selectedCircle, setSelectedCircle] = useState({});
+  const [barChartData, setBarChartData] = useState(null);
+  const [pieChartData, setPieChartData] = useState(null);
+  const [barChartExplanation, setBarChartExplanation] = useState('');
+  const [pieChartExplanation, setPieChartExplanation] = useState('');
+  const chatGptApiKey = 'your_api_key_here'; // Replace with your API key
+  const chatGptApiEndpoint = 'https://api.openai.com/v1/chat/completions';
+  const [inputFieldValue, setInputFieldValue] = useState('');
+  const [images, setImages] = useState([]);
+  const eurostatApiEndpoint = "https://api.eurostat.ec.europa.eu/rest/data/v2.1/json/en";
 
 async function fetchEurostatData() {
   const response = await axios.get(eurostatApiEndpoint, {
@@ -39,21 +52,9 @@ async function fetchEurostatData() {
   }
 }
 
-window.addEventListener("load", fetchEurostatData);
-
-function App() {
-  const [data, setData] = useState([]);
-  const [imageUrl, setImageUrl] = useState('');
-  const [selectedRange, setSelectedRange] = useState([0, 49]);
-  const [selectedCircle, setSelectedCircle] = useState({});
-  const [barChartData, setBarChartData] = useState(null);
-  const [pieChartData, setPieChartData] = useState(null);
-  const [barChartExplanation, setBarChartExplanation] = useState('');
-  const [pieChartExplanation, setPieChartExplanation] = useState('');
-  const chatGptApiKey = 'your_api_key_here'; // Replace with your API key
-  const chatGptApiEndpoint = 'https://api.openai.com/v1/chat/completions';
-  const [inputFieldValue, setInputFieldValue] = useState('');
-  const [images, setImages] = useState([]);
+useEffect(() => {
+  fetchEurostatData();
+}, []);
 
   async function generateImage() {
     try {
