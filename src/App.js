@@ -8,6 +8,7 @@ import Slider from 'rc-slider';
 import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
+import { fetchEurostatData } from "./fetchEurostatData";
 
 function App() {
   const [data, setData] = useState([]);
@@ -22,6 +23,16 @@ function App() {
   const chatGptApiEndpoint = 'https://api.openai.com/v1/chat/completions';
   const [inputFieldValue, setInputFieldValue] = useState('');
   const [images, setImages] = useState([]);
+  const [eurostatData, setEurostatData] = useState([]);
+
+  useEffect(() => {
+    const eurostatData = await fetchEurostatData();
+    setEurostatData(eurostatData);
+  }, []);
+
+  if (eurostatData.length > 0) {
+    console.log(eurostatData);
+  }
   
   async function generateImage() {
     try {
