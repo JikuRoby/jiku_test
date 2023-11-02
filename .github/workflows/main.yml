@@ -1,0 +1,2 @@
+name: Authorize Bard
+uses: google-github-actions/bard@v1
