@@ -1,0 +1,26 @@
+/* app.css */
+/* Your custom styles for the header and map */
+
+#header {
+  background-color: #333;
+  color: white;
+  height: 100px;
+}
+
+#map-container {
+  height: calc(100vh - 100px);
+    position: relative;
+}
+
+.start-date {
+  float: left; /* Position the start date to the left */
+}
+
+.end-date {
+  float: right; /* Position the end date to the right */
+}
+
+.chart-container {
+  height: 300px; /* Set your desired fixed height */
+  overflow: auto; /* Add scrollbars if the content exceeds the fixed height */
+}
