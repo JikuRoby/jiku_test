@@ -11,6 +11,7 @@ import axios from 'axios';
 import fetchEurostatData from "./fetchEurostatData";
 
 function App() {
+  console.log("ciao");
   const [eurostatData, setEurostatData] = useState([]);
 
   useEffect(() => {
