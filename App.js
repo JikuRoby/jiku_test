@@ -9,6 +9,38 @@ import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
 
+const eurostatApiEndpoint = "https://api.eurostat.ec.europa.eu/rest/data/v2.1/json/en";
+
+async function fetchEurostatData() {
+  const response = await axios.get(eurostatApiEndpoint, {
+    params: {
+      q: "climate",
+      p: "/sdmx-json/data/esl/sieaei/en0811",
+    },
+  });
+
+  if (response.status === 200) {
+    const data = response.data.dataSets[0].observations;
+    const filteredData = data.filter((item) => {
+      return (
+        item.dim.geo.id !== undefined && item.dim.unit !== undefined && item.obsValue !== undefined
+      );
+    });
+
+    const uniqueDates = Array.from(new Set(filteredData.map((item) => item.dim.time)));
+    const uniqueCountries = Array.from(
+      new Set(filteredData.map((item) => item.dim.geo.id))
+    );
+
+    console.log(`Unique dates: ${uniqueDates}`);
+    console.log(`Unique countries: ${uniqueCountries}`);
+  } else {
+    console.error("Error fetching Eurostat data");
+  }
+}
+
+window.addEventListener("load", fetchEurostatData);
+
 function App() {
   const [data, setData] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
