@@ -22,6 +22,7 @@ function App() {
   const chatGptApiEndpoint = 'https://api.openai.com/v1/chat/completions';
   const [inputFieldValue, setInputFieldValue] = useState('');
   const [images, setImages] = useState([]);
+
   const eurostatApiEndpoint = "https://api.eurostat.ec.europa.eu/rest/data/v2.1/json/en";
 
 async function fetchEurostatData() {
@@ -33,20 +34,8 @@ async function fetchEurostatData() {
   });
 
   if (response.status === 200) {
-    const data = response.data.dataSets[0].observations;
-    const filteredData = data.filter((item) => {
-      return (
-        item.dim.geo.id !== undefined && item.dim.unit !== undefined && item.obsValue !== undefined
-      );
-    });
-
-    const uniqueDates = Array.from(new Set(filteredData.map((item) => item.dim.time)));
-    const uniqueCountries = Array.from(
-      new Set(filteredData.map((item) => item.dim.geo.id))
-    );
-
-    console.log(`Unique dates: ${uniqueDates}`);
-    console.log(`Unique countries: ${uniqueCountries}`);
+    const data = response.data.dataSets[0];
+    console.log(JSON.stringify(data));
   } else {
     console.error("Error fetching Eurostat data");
   }
