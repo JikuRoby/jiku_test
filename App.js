@@ -11,9 +11,21 @@ import axios from 'axios';
 import fetchEurostatData from "./fetchEurostatData";
 
 function App() {
+  const [eurostatData, setEurostatData] = useState([]);
+
   useEffect(() => {
     fetchEurostatData();
   }, []);
+
+  if (eurostatData.length > 0) {
+    console.log(eurostatData);
+  }
+
+  return (
+    <div className="container">
+      <h1>Eurostat Data</h1>
+    </div>
+  );
   const [data, setData] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
   const [selectedRange, setSelectedRange] = useState([0, 49]);
