@@ -8,8 +8,12 @@ import Slider from 'rc-slider';
 import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
+import fetchEurostatData from "./fetchEurostatData";
 
 function App() {
+  useEffect(() => {
+    fetchEurostatData();
+  }, []);
   const [data, setData] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
   const [selectedRange, setSelectedRange] = useState([0, 49]);
