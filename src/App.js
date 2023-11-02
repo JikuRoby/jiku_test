@@ -23,6 +23,28 @@ function App() {
   const [inputFieldValue, setInputFieldValue] = useState('');
   const [images, setImages] = useState([]);
 
+  const eurostatApiEndpoint = "https://api.eurostat.ec.europa.eu/rest/data/v2.1/json/en";
+
+async function fetchEurostatData() {
+  const response = await axios.get(eurostatApiEndpoint, {
+    params: {
+      q: "climate",
+      p: "/sdmx-json/data/esl/sieaei/en0811",
+    },
+  });
+
+  if (response.status === 200) {
+    const data = response.data.dataSets[0];
+    console.log(JSON.stringify(data));
+  } else {
+    console.error("Error fetching Eurostat data");
+  }
+}
+
+useEffect(() => {
+  fetchEurostatData();
+}, []);
+
   async function generateImage() {
     try {
       const response = await axios.post('https://api.openai.com/v1/images/generations', {
