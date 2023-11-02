@@ -208,26 +208,7 @@ function App() {
       )}
       <div className="row">
         <div className="col-12">
-          <MapContainer
-            center={[39.0, 9.0]}
-            zoom={5}
-            style={{ height: 'calc(100vh)' }}
-            id="map-container"
-            scrollWheelZoom={false}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-            />
-            {filteredData.map((item, index) => (
-              <Circle
-                center={[item.lat, item.lon]}
-                radius={50000}
-                key={index}
-                eventHandlers={{ click: () => openInfoModal(item) }}
-              />
-            ))}
-          </MapContainer>
+         
         </div>
       </div>
       <Modal
