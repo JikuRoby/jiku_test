@@ -1,14 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'rc-slider/assets/index.css';
-import { Line } from 'react-chartjs-2';
-import 'chart.js/auto';
-import Slider from 'rc-slider';
-import { Modal, Button } from 'react-bootstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import axios from 'axios';
-import fetchEurostatData from "./fetchEurostatData";
+
 
 function App() {
   const [eurostatData, setEurostatData] = useState([]);
