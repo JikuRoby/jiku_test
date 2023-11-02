@@ -11,7 +11,6 @@ import axios from 'axios';
 import fetchEurostatData from "./fetchEurostatData";
 
 function App() {
-  console.log("ciao");
   const [eurostatData, setEurostatData] = useState([]);
 
   useEffect(() => {
@@ -186,6 +185,8 @@ function App() {
   const filteredData = data.slice(selectedRange[0], selectedRange[1] + 1);
 
   return (
+      console.log("ciao");
+
     <div className="container-fluid">
       <div id="search-container">
         <div className="form-group">
