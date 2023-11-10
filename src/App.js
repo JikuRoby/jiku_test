@@ -1,235 +1,327 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'rc-slider/assets/index.css';
-import { Line } from 'react-chartjs-2';
-import 'chart.js/auto';
-import Slider from 'rc-slider';
-import { Modal, Button } from 'react-bootstrap';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import axios from 'axios';
-import { fetchEurostatData } from "./fetchEurostatData";
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import CityDataComponent from './CityDataComponent';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
+import { Modal, Button, Container, Row, Col } from 'react-bootstrap';
+import CheckboxComponent from './CheckboxComponent'; // Import the new CheckboxComponent
 
 function App() {
-  const [data, setData] = useState([]);
-  const [imageUrl, setImageUrl] = useState('');
-  const [selectedRange, setSelectedRange] = useState([0, 49]);
-  const [selectedCircle, setSelectedCircle] = useState({});
-  const [barChartData, setBarChartData] = useState(null);
-  const [pieChartData, setPieChartData] = useState(null);
-  const [barChartExplanation, setBarChartExplanation] = useState('');
-  const [pieChartExplanation, setPieChartExplanation] = useState('');
-  const chatGptApiKey = 'your_api_key_here'; // Replace with your API key
-  const chatGptApiEndpoint = 'https://api.openai.com/v1/chat/completions';
-  const [inputFieldValue, setInputFieldValue] = useState('');
-  const [images, setImages] = useState([]);
-  const [eurostatData, setEurostatData] = useState([]);
+  const mapRef = useRef(null);
+  const [eurostatData, setEurostatData] = useState({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clickedCircleData, setClickedCircleData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [uniqueLocations, setUniqueLocations] = useState({});
+  const [totalCoordinateCount, setTotalCoordinateCount] = useState(0);
+  const [uniqueDates, setUniqueDates] = useState([]);
+  const [intervalDates, setIntervalDates] = useState([]);
+  const [selectedTimeRange, setSelectedTimeRange] = useState([0, 0]);
+  const [sliderValue, setSliderValue] = useState([0, 0]);
+  const [checkboxStates, setCheckboxStates] = useState({});
+  const [isMapDataReady, setIsMapDataReady] = useState(false); // New state to track map data readiness
 
   useEffect(() => {
-    const eurostatData = await fetchEurostatData();
-    setEurostatData(eurostatData);
-  }, []);
-
-  if (eurostatData.length > 0) {
-    console.log(eurostatData);
-  }
-  
-  async function generateImage() {
-    try {
-      const response = await axios.post('https://api.openai.com/v1/images/generations', {
-        prompt: "peole working in un campo pieni di immondizia con bottiglie di plastica e lattine e rifiuti organici",
-        n: 1,
-        size: '512x512',
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${chatGptApiKey}`,
-        },
-      });
-
-      if (response.status === 200) {
-        setImageUrl(response.data.data[0].url);
-        return response.data.data[0].url;
-      } else {
-        console.error('Image generation request failed with status:', response.status);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      return null;
+    if (!mapRef.current && !isLoading) {
+      const initialMap = L.map('map', { scrollWheelZoom: false }).setView([51.505, -0.09], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+      }).addTo(initialMap);
+      mapRef.current = initialMap;
+      setIsMapDataReady(true); // Set isMapDataReady to true when map is initialized
     }
-  }
+  }, [isLoading]);
 
-  async function generateImageData(circleData) {
-    try {
-      const prompt = `a vector illustration of a woman vista di lato con una borsa con dentro bottiglie di plastica`;
-      const response = await axios.post('https://api.openai.com/v1/images/generations', {
-        prompt: prompt,
-        n: 1,
-        size: '512x512',
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${chatGptApiKey}`,
-        },
-      });
-
-      if (response.status === 200) {
-        return response.data.data[0].url;
-      } else {
-        console.error('Image generation request failed with status:', response.status);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error generating image data:', error);
-      return null;
+  useEffect(() => {
+    if (!isLoading) {
+      updateMap();
     }
-  }
+  }, [eurostatData, selectedTimeRange, isLoading]);
 
-  async function requestAnalysis(chatInput, maxChars = 300) {
-    try {
-      const response = await axios.post(
-        chatGptApiEndpoint,
-        {
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: 'user',
-              content: chatInput,
-            },
-          ],
-          max_tokens: maxChars,
-          temperature: 0.7,
-          stop: '\n'
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${chatGptApiKey}`,
-          },
+  useEffect(() => {
+    createArrays();
+  }, [eurostatData]);
+
+  useEffect(() => {
+    if (intervalDates.length > 0) {
+      setSelectedTimeRange([0, intervalDates.length - 1]);
+      setSliderValue([0, intervalDates.length - 1]);
+    }
+  }, [intervalDates]);
+
+  useEffect(() => {
+    // This function runs whenever the eurostatData is updated
+    extractAndSetDataKeys();
+  }, [eurostatData]);
+
+  // useMemo to only recalculate when eurostatData changes
+  const dataKeys = useMemo(() => {
+    const keys = new Set();
+    Object.values(eurostatData).forEach(({ dates }) => {
+      Object.values(dates || {}).forEach((date) => {
+        Object.keys(date).forEach(key => keys.add(key));
+      });
+    });
+    return keys;
+  }, [eurostatData]);
+
+  // This effect sets the checkbox state when dataKeys changes
+  useEffect(() => {
+    setCheckboxStates(currentStates => {
+      const newStates = { ...currentStates };
+      dataKeys.forEach((key) => {
+        if (currentStates[key] === undefined) {
+          newStates[key] = true; // default new keys to true
         }
-      );
+      });
+      return newStates;
+    });
+  }, [dataKeys]);
 
-      if (response.status === 200) {
-        let content = response.data.choices[0].message.content;
-        return content;
-      }
-      console.error('ChatGPT request failed.');
-      return '';
-    } catch (error) {
-      console.error('Error sending request to ChatGPT:', error);
-      return '';
+  const extractAndSetDataKeys = () => {
+    const allKeys = new Set();
+    Object.values(eurostatData).forEach(cityData => {
+      Object.values(cityData.dates || {}).forEach(dateData => {
+        Object.keys(dateData).forEach(key => {
+          allKeys.add(key);
+        });
+      });
+    });
+
+    // Create an object with keys and set them all to true initially
+    const initialCheckboxState = {};
+    allKeys.forEach(key => {
+      initialCheckboxState[key] = true; // Set all checkboxes to checked by default
+    });
+
+    setCheckboxStates(initialCheckboxState);
+  };
+
+  const handleCheckboxChange = (key) => {
+    setCheckboxStates((prevStates) => ({
+      ...prevStates,
+      [key]: !prevStates[key], // Toggle the checkbox state
+    }));
+  };
+
+  const updateMap = () => {
+
+    if (!mapRef.current || !eurostatData || Object.keys(eurostatData).length === 0) {
+      return;
     }
-  }
 
-  async function generateDataDescription(data) {
-    try {
-      const response = await requestAnalysis(data);
+    const bounds = L.latLngBounds([]);
+    mapRef.current.eachLayer(layer => {
+      if (layer instanceof L.Circle) {
+        layer.remove();
+      }
+    });
 
-      if (response) {
-        return response;
+    Object.entries(eurostatData).forEach(([locationName, cityData]) => {
+      const { coordinates, dates } = cityData;
+
+      if (coordinates && dates) {
+        Object.entries(dates).forEach(([date, dateData]) => {
+          const dateTimestamp = new Date(date).getTime();
+          if (
+            dateTimestamp >= new Date(intervalDates[selectedTimeRange[0]]).getTime() &&
+            dateTimestamp <= new Date(intervalDates[selectedTimeRange[1]]).getTime()
+          ) {
+            const radius = 10000;
+            const circle = L.circle([coordinates.latitude, coordinates.longitude], {
+              color: 'blue',
+              fillColor: '#f03',
+              fillOpacity: 0.5,
+              radius: radius,
+            }).addTo(mapRef.current);
+
+            bounds.extend([coordinates.latitude, coordinates.longitude]);
+
+            circle.on('click', () => {
+              const selectedData = {};
+              Object.entries(dates).forEach(([innerDate, dateInfo]) => {
+                const innerDateTimestamp = new Date(innerDate).getTime();
+                if (
+                  innerDateTimestamp >= new Date(intervalDates[selectedTimeRange[0]]).getTime() &&
+                  innerDateTimestamp <= new Date(intervalDates[selectedTimeRange[1]]).getTime()
+                ) {
+                  // Filter data based on checkbox states
+                  const filteredDateInfo = Object.keys(dateInfo)
+                    .filter(key => checkboxStates[key])
+                    .reduce((obj, key) => {
+                      obj[key] = dateInfo[key];
+                      return obj;
+                    }, {});
+                  
+                  if (Object.keys(filteredDateInfo).length > 0) {
+                    selectedData[innerDate] = filteredDateInfo;
+                  }
+                }
+              });
+
+              if (Object.keys(selectedData).length > 0) {
+                setClickedCircleData({
+                  locationName: locationName,
+                  data: selectedData,
+                });
+                setIsModalOpen(true);
+              } else {
+                console.warn('No data for selected dates or filters:', intervalDates[selectedTimeRange[0]], '-', intervalDates[selectedTimeRange[1]]);
+              }
+            });
+
+          }
+        });
+      }
+    });
+
+    if (bounds.isValid()) {
+      mapRef.current.fitBounds(bounds);
+    }
+  };
+
+  const createArrays = () => {
+    const uniqueLocationMap = {};
+    const uniqueDateSet = new Set();
+    const sixIntervalDateSet = new Set();
+
+    Object.entries(eurostatData).forEach(([locationName, cityData]) => {
+      const { coordinates, dates } = cityData;
+
+      if (coordinates) {
+        uniqueLocationMap[locationName] = coordinates;
       }
 
-      console.error('Description not received from ChatGPT.');
-      return 'No description available';
-    } catch (error) {
-      console.error('Error generating description:', error);
-      return 'Error generating description';
+      if (dates) {
+        Object.keys(dates).forEach(date => {
+          uniqueDateSet.add(date);
+        });
+      }
+    });
+
+    const sortedDates = Array.from(uniqueDateSet).sort((a, b) => new Date(a) - new Date(b));
+    const intervalSize = Math.ceil(sortedDates.length / 6);
+
+    for (let i = 0; i < sortedDates.length; i += intervalSize) {
+      sixIntervalDateSet.add(sortedDates[i]);
     }
-  }
 
-  useEffect(() => {
-    // Your data loading logic here
-  }, []);
-
-  function calculateTotalData(selectedCircle, selectedRange) {
-    // Your data calculation logic here
-  }
-
-  const openInfoModal = async (circleData) => {
-    // Your modal opening logic here
+    setTotalCoordinateCount(Object.keys(uniqueLocationMap).length);
+    setUniqueLocations(uniqueLocationMap);
+    setUniqueDates(Array.from(uniqueDateSet).sort());
+    setIntervalDates(Array.from(sixIntervalDateSet).sort());
   };
 
-  function constructChatInput(circleData, barChartData, pieChartData) {
-    return `User: ${circleData.location}, Bar Chart: ${barChartData}, Pie Chart: ${pieChartData}`;
-  }
-
-  const closeInfoModal = () => {
-    setSelectedCircle({});
-    setBarChartData(null);
-    setPieChartData(null);
+  const handleSliderChange = (newTimeRange) => {
+    setSelectedTimeRange(newTimeRange);
+    setSliderValue(newTimeRange);
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+  const ModalContent = () => {
+    const [filteredData, setFilteredData] = useState({});
+
+    useEffect(() => {
+      if (clickedCircleData) {
+        // Filter the clickedCircleData based on checkboxStates before setting it to state
+        const dataFilteredByCheckboxes = Object.entries(clickedCircleData.data).reduce((acc, [date, values]) => {
+          // Keep only the keys that are true in checkboxStates
+          const filteredValues = Object.keys(values).reduce((accInner, key) => {
+            if (checkboxStates[key]) {
+              accInner[key] = values[key];
+            }
+            return accInner;
+          }, {});
+
+          if (Object.keys(filteredValues).length > 0) {
+            acc[date] = filteredValues;
+          }
+
+          return acc;
+        }, {});
+
+        setFilteredData(dataFilteredByCheckboxes);
+      }
+    }, [clickedCircleData, checkboxStates]);
+
+    if (!clickedCircleData) {
+      return null;
+    }
+
+    return (
+      <Modal show={isModalOpen} onHide={() => setIsModalOpen(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Data Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <h5>Location: {clickedCircleData.locationName}</h5>
+          <p>Date Range: {intervalDates[sliderValue[0]]} - {intervalDates[sliderValue[1]]}</p>
+          {/* Display the filtered data */}
+          <pre>{JSON.stringify(filteredData, null, 2)}</pre>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    );
   };
-
-  const handleTimeRangeChange = (event, value) => {
-    setSelectedRange(value);
-  };
-
-  function formatDate(dateString) {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day}/${month}/${year}`;
-  }
-
-  const filteredData = data.slice(selectedRange[0], selectedRange[1] + 1);
 
   return (
-    <div className="container-fluid">
-      <div id="search-container">
-        <div className="form-group">
-          <input
-            type="text"
-            placeholder="Enter a search topic"
-            className="form-control"
-          />
-          <button className="btn btn-primary">
-            Search Images
-          </button>
-        </div>
-      </div>
-      {data.length > 0 && (
-        <div id="slider-container">
-          {/* Your slider and timeline code here */}
-        </div>
-      )}
-      <div className="row">
-        <div className="col-12">
-          <MapContainer
-            center={[39.0, 9.0]}
-            zoom={5}
-            style={{ height: 'calc(100vh)' }}
-            id="map-container"
-            scrollWheelZoom={false}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
+    <Container fluid className="App mt-5">
+      <Row className="mt-3">
+        <Col>
+          {isMapDataReady ? (
+            <CheckboxComponent
+              dataKeys={Array.from(dataKeys)}
+              checkboxStates={checkboxStates}
+              handleCheckboxChange={handleCheckboxChange}
             />
-            {filteredData.map((item, index) => (
-              <Circle
-                center={[item.lat, item.lon]}
-                radius={50000}
-                key={index}
-                eventHandlers={{ click: () => openInfoModal(item) }}
-              />
-            ))}
-          </MapContainer>
-        </div>
-      </div>
-      <Modal
-        show={selectedCircle.location !== undefined}
-        onHide={closeInfoModal}
-        dialogClassName="modal-lg"
-      >
-        {/* Your modal content */}
-      </Modal>
-    </div>
+          ) : (
+            <p>Loading map data...</p>
+          )}
+        </Col>
+      </Row>
+      <Row className="mt-5">
+        <Col>
+          <CityDataComponent
+            onEurostatDataFetched={(data) => {
+              setEurostatData(data);
+              setIsLoading(false);
+            }}
+            checkboxStates={checkboxStates} // Pass the checkboxStates prop here
+          />
+        </Col>
+      </Row>
+      <Row className="mt-5">
+        <Col>
+          <Slider
+            range
+            min={0}
+            max={intervalDates.length - 1}
+            value={selectedTimeRange}
+            onChange={handleSliderChange}
+            marks={intervalDates.reduce((acc, date, index) => {
+              acc[index] = date;
+              return acc;
+            }, {})}
+            step={1}
+          />
+        </Col>
+      </Row>
+      <Row className="mt-5">
+        <Col>
+          {isLoading ? (
+            <p>Loading Eurostat data...</p>
+          ) : (
+            <div id="map" style={{ height: '500px' }}></div>
+          )}
+        </Col>
+      </Row>
+      <ModalContent />
+    </Container>
   );
 }
 
